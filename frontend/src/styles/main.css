@@ -311,4 +311,47 @@
     .app-right{ flex-direction:row; justify-content:space-between; width:100%; }
     .two-col{ grid-template-columns: 1fr; }
   }
+
+
+  .companies{
+    margin-top: 14px;
+    display:grid;
+    gap: 10px;
+  }
+  
+  .company-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.10);
+  }
+  
+  .company-title{
+    font-weight: 900;
+    margin-bottom: 4px;
+  }
+  
+  .company-sub{
+    display:flex;
+    gap: 8px;
+    flex-wrap:wrap;
+    font-size: 13px;
+  }
+  
+  .company-actions{
+    display:flex;
+    gap: 8px;
+    align-items:flex-start;
+    min-width: 160px;
+    justify-content:flex-end;
+  }
+  
+  @media (max-width: 900px){
+    .company-row{ flex-direction:column; }
+    .company-actions{ width:100%; justify-content:space-between; }
+  }
   
