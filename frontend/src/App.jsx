@@ -9,6 +9,8 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Applications from "./pages/Applications";
 import Companies from "./pages/Companies";
+import ApplicationDetail from "./pages/ApplicationDetail";
+
 
 function ProtectedLayout({ children }) {
   return (
@@ -55,6 +57,15 @@ export default function App() {
               </ProtectedLayout>
             }
           />
+          <Route
+            path="/applications/:id"
+            element={
+              <ProtectedLayout>
+                <ApplicationDetail />
+              </ProtectedLayout>
+            }
+          />
+
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

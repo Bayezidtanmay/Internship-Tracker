@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
 import Modal from "../components/Modal";
@@ -52,6 +53,14 @@ export default function Applications() {
         return () => window.removeEventListener("keydown", onKey);
     }, []);
 
+    function buildQuery() {
+        const params = new URLSearchParams();
+        if (q.trim()) params.set("q", q.trim());
+        if (status !== "ALL") params.set("status", status);
+        if (sort) params.set("sort", sort);
+        return `/applications?${params.toString()}`;
+    }
+
     async function load() {
         setError("");
         setLoading(true);
@@ -69,21 +78,12 @@ export default function Applications() {
         }
     }
 
-    function buildQuery() {
-        const params = new URLSearchParams();
-        if (q.trim()) params.set("q", q.trim());
-        if (status !== "ALL") params.set("status", status);
-        if (sort) params.set("sort", sort);
-        return `/applications?${params.toString()}`;
-    }
-
     useEffect(() => {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // reload when filters change (debounced-ish: only on button press would be nicer,
-    // but this is okay and still simple)
+    // reload when filters change (debounced)
     useEffect(() => {
         const t = setTimeout(() => load(), 250);
         return () => clearTimeout(t);
@@ -233,7 +233,11 @@ export default function Applications() {
                     </label>
                 </div>
 
-                {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
+                {error && (
+                    <div className="error" style={{ marginTop: 12 }}>
+                        {error}
+                    </div>
+                )}
 
                 {loading ? (
                     <p style={{ marginTop: 14 }}>Loading...</p>
@@ -245,22 +249,34 @@ export default function Applications() {
                     <div className="apps">
                         {items.map((app) => {
                             const company = companyMap.get(String(app.company_id)) || app.company;
+
                             return (
                                 <div className="app-row" key={app.id}>
                                     <div className="app-main">
-                                        <div className="app-title">{app.role_title}</div>
+                                        <div className="app-title">
+                                            <Link to={`/applications/${app.id}`} className="app-link">
+                                                {app.role_title}
+                                            </Link>
+                                        </div>
+
                                         <div className="muted app-sub">
                                             <span>{company?.name || "Company"}</span>
                                             {app.applied_date ? <span>• Applied: {app.applied_date}</span> : null}
-                                            {app.next_follow_up ? <span>• Follow-up: {app.next_follow_up}</span> : null}
+                                            {app.next_follow_up ? (
+                                                <span>• Follow-up: {app.next_follow_up}</span>
+                                            ) : null}
                                         </div>
                                     </div>
 
                                     <div className="app-right">
                                         <StatusBadge status={app.status} />
                                         <div className="app-actions">
-                                            <button className="btn secondary" onClick={() => openEdit(app)}>Edit</button>
-                                            <button className="btn danger" onClick={() => remove(app)}>Delete</button>
+                                            <button className="btn secondary" onClick={() => openEdit(app)}>
+                                                Edit
+                                            </button>
+                                            <button className="btn danger" onClick={() => remove(app)}>
+                                                Delete
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -283,7 +299,9 @@ export default function Applications() {
                     >
                         <option value="">Select company</option>
                         {companies.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                            <option key={c.id} value={c.id}>
+                                {c.name}
+                            </option>
                         ))}
                     </Select>
 
@@ -300,7 +318,9 @@ export default function Applications() {
                         onChange={(v) => setForm((f) => ({ ...f, status: v }))}
                     >
                         {STATUSES.filter((s) => s !== "ALL").map((s) => (
-                            <option key={s} value={s}>{s}</option>
+                            <option key={s} value={s}>
+                                {s}
+                            </option>
                         ))}
                     </Select>
 

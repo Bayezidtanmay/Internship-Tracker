@@ -4,14 +4,24 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\ApplicationEvent;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ApplicationController extends Controller
 {
-    private array $allowedStatuses = ['APPLIED', 'INTERVIEW', 'OFFER', 'REJECTED', 'WISHLIST'];
+    private array $allowedStatuses = [
+        'WISHLIST',
+        'APPLIED',
+        'INTERVIEW',
+        'OFFER',
+        'REJECTED',
+    ];
 
+    /**
+     * List applications with filters
+     */
     public function index(Request $request)
     {
         $q = Application::query()
@@ -23,7 +33,7 @@ class ApplicationController extends Controller
         }
 
         if ($request->filled('company_id')) {
-            $q->where('company_id', (int)$request->query('company_id'));
+            $q->where('company_id', (int) $request->query('company_id'));
         }
 
         if ($request->filled('q')) {
@@ -35,7 +45,7 @@ class ApplicationController extends Controller
         }
 
         $sort = $request->query('sort', 'updated_desc');
-        $q = match ($sort) {
+        match ($sort) {
             'applied_asc' => $q->orderBy('applied_date'),
             'applied_desc' => $q->orderByDesc('applied_date'),
             'created_asc' => $q->orderBy('created_at'),
@@ -46,6 +56,9 @@ class ApplicationController extends Controller
         return response()->json($q->get());
     }
 
+    /**
+     * Create new application
+     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -59,7 +72,6 @@ class ApplicationController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        // Ensure company belongs to user
         $company = Company::findOrFail($data['company_id']);
         abort_if($company->user_id !== $request->user()->id, 403, 'Forbidden');
 
@@ -68,19 +80,44 @@ class ApplicationController extends Controller
             ...$data,
         ]);
 
-        return response()->json($app->load('company:id,name'), 201);
+        // 🔹 Create initial timeline event
+        ApplicationEvent::create([
+            'user_id' => $request->user()->id,
+            'application_id' => $app->id,
+            'type' => 'APPLIED',
+            'event_date' => $data['applied_date'] ?? now()->toDateString(),
+            'note' => 'Application created',
+        ]);
+
+        return response()->json(
+            $app->load(['company:id,name', 'events']),
+            201
+        );
     }
 
+    /**
+     * Show application details + timeline
+     */
     public function show(Request $request, Application $application)
     {
         $this->ensureOwner($request, $application);
 
-        return response()->json($application->load('company:id,name'));
+        return response()->json(
+            $application->load([
+                'company:id,name',
+                'events',
+            ])
+        );
     }
 
+    /**
+     * Update application
+     */
     public function update(Request $request, Application $application)
     {
         $this->ensureOwner($request, $application);
+
+        $oldStatus = $application->status;
 
         $data = $request->validate([
             'company_id' => ['required', 'integer', 'exists:companies,id'],
@@ -98,9 +135,29 @@ class ApplicationController extends Controller
 
         $application->update($data);
 
-        return response()->json($application->load('company:id,name'));
+        // 🔹 If status changed, add timeline event
+        if ($oldStatus !== $data['status']) {
+            ApplicationEvent::create([
+                'user_id' => $request->user()->id,
+                'application_id' => $application->id,
+                'type' => 'STATUS_CHANGED',
+                'event_date' => now()->toDateString(),
+                'note' => "Status changed from {$oldStatus} to {$data['status']}",
+                'meta' => [
+                    'from' => $oldStatus,
+                    'to' => $data['status'],
+                ],
+            ]);
+        }
+
+        return response()->json(
+            $application->load(['company:id,name', 'events'])
+        );
     }
 
+    /**
+     * Delete application
+     */
     public function destroy(Request $request, Application $application)
     {
         $this->ensureOwner($request, $application);
@@ -112,6 +169,10 @@ class ApplicationController extends Controller
 
     private function ensureOwner(Request $request, Application $application): void
     {
-        abort_if($application->user_id !== $request->user()->id, 403, 'Forbidden');
+        abort_if(
+            $application->user_id !== $request->user()->id,
+            403,
+            'Forbidden'
+        );
     }
 }
